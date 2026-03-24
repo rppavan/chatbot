@@ -8,7 +8,7 @@ This document defines the technical design for implementing the Multi-Tenant CX 
 
 1. **Guided Flows First, LLM Second** -- Deterministic graph-driven flows handle structured journeys (order tracking, cancellation, returns). The LLM handles intent classification, slot extraction, FAQ generation, and fallback conversation.
 2. **Shared Memory** -- A single `ConversationState` object is threaded through every node, tool call, and LLM invocation. This eliminates redundant API calls and keeps multi-step flows coherent.
-3. **Tenant Isolation** -- Tenant context is resolved at ingress and attached to state. All downstream calls (APIs, LLM prompts, tool selection) are scoped to the tenant.
+3. **Tenant Isolation** -- `tenant_id` is provided in the request header by the platform. All downstream calls (APIs, LLM prompts, tool selection) are scoped to the tenant.
 4. **Minimize Agent Handoffs** -- Automate as much as possible via API tools; escalate only on explicit failure paths.
 
 ---
@@ -21,12 +21,8 @@ This document defines the technical design for implementing the Multi-Tenant CX 
                                   | (WhatsApp, Web, FB) |
                                   +--------+------------+
                                            |
-                                           v
-                                  +--------+------------+
-                                  | Tenant Resolver     |
-                                  | (channel_id -> tid) |
-                                  +--------+------------+
-                                           |
+                                           | tenant_id from
+                                           | request header
                                            v
                               +------------+-------------+
                               |  LangGraph StateGraph    |
@@ -74,9 +70,9 @@ class ConversationState(MessagesState):
     All fields below are shared across every node, tool, and LLM call.
     """
 
-    # --- Tenant Context (set once at ingress) ---
-    tenant_id: str                          # e.g. "store-a"
-    tenant_config: dict                     # store name, API keys, branding, Shopify domain
+    # --- Tenant Context (from request header, set once at ingress) ---
+    tenant_id: str                          # provided in request header, e.g. "store-a"
+    tenant_config: dict                     # loaded from config store using tenant_id
     channel: Literal["whatsapp", "web", "facebook", "instagram"]
     channel_identifier: str                 # WhatsApp number / widget domain / page ID
 
@@ -121,7 +117,7 @@ class ConversationState(MessagesState):
 
 ### 3.2 How State Flows Through the System
 
-1. **Channel adapter** creates the initial state with `tenant_id`, `channel`, `session_id`.
+1. **Channel adapter** extracts `tenant_id` from the request header and creates the initial state with `tenant_id`, `tenant_config`, `channel`, `session_id`.
 2. Each **LangGraph node** receives the full state, performs its logic (API call, LLM call, or conditional routing), and returns a partial dict of updates.
 3. LangGraph **merges** updates into the state automatically (reducer semantics).
 4. **Tools** receive relevant state slices via tool input and return structured results that nodes write back to state.
@@ -158,7 +154,8 @@ from langgraph.graph import StateGraph, START, END
 builder = StateGraph(ConversationState)
 
 # ── Entry ──
-builder.add_node("resolve_tenant",     resolve_tenant)
+# tenant_id arrives in the request header; no resolution node needed.
+# tenant_config is loaded by the channel adapter before graph invocation.
 builder.add_node("check_user",         check_user)
 builder.add_node("guest_flow",         guest_flow)
 builder.add_node("otp_send",           otp_send)
@@ -214,8 +211,7 @@ builder.add_node("csat_survey",        csat_survey)
 builder.add_node("close_chat",         close_chat)
 
 # ── Edges ──
-builder.add_edge(START, "resolve_tenant")
-builder.add_edge("resolve_tenant", "check_user")
+builder.add_edge(START, "check_user")
 
 builder.add_conditional_edges("check_user", route_auth, {
     "registered":    "welcome",
@@ -625,25 +621,15 @@ def faq_answer(state: ConversationState) -> dict:
 
 ## 7. Multi-Tenancy Design
 
-### 7.1 Tenant Resolution
+### 7.1 Tenant Context from Header
+
+The `tenant_id` is passed automatically in the request header by the platform -- no resolution or registry lookup is needed. The channel adapter reads it directly and loads the corresponding config before invoking the graph.
 
 ```python
-# Tenant config store (database or config service)
-TENANT_REGISTRY = {
-    "whatsapp:+1234567890": "tenant-store-a",
-    "web:storea.com":       "tenant-store-a",
-    "whatsapp:+0987654321": "tenant-store-b",
-    "fb:page-id-xyz":       "tenant-store-b",
-}
-
-def resolve_tenant(state: ConversationState) -> dict:
-    key = f"{state['channel']}:{state['channel_identifier']}"
-    tenant_id = TENANT_REGISTRY[key]
-    tenant_config = load_tenant_config(tenant_id)  # API keys, store name, Shopify domain, branding
-    return {
-        "tenant_id": tenant_id,
-        "tenant_config": tenant_config,
-    }
+def load_tenant_config(tenant_id: str) -> dict:
+    """Load tenant configuration (API keys, branding, Shopify domain) from config store."""
+    # Config store can be a database table, a secrets manager, or a config service
+    return config_store.get(tenant_id)
 ```
 
 ### 7.2 Tenant-Scoped API Client
@@ -677,7 +663,7 @@ class TenantAPIClient:
 
 | Layer | Isolation Mechanism |
 |---|---|
-| **State persistence** | `thread_id` = `{tenant_id}:{session_id}` -- separate checkpoint namespaces |
+| **State persistence** | `thread_id` = `{tenant_id}:{session_id}` -- tenant_id from header ensures separate checkpoint namespaces |
 | **API calls** | `TenantAPIClient` initialized per tenant with tenant-specific credentials |
 | **FAQ/RAG** | Vector store filtered by `tenant_id` metadata on every retrieval |
 | **LLM prompts** | Tenant `store_name` and branding injected; no cross-tenant data in context |
@@ -753,12 +739,14 @@ class FacebookAdapter(ChannelAdapter):
 ### 8.3 Request Handler (Entrypoint)
 
 ```python
-async def handle_message(channel: str, raw_event: dict):
+async def handle_message(channel: str, raw_event: dict, request: Request):
     adapter = get_adapter(channel)
     channel_id, session_id, user_message = await adapter.parse_inbound(raw_event)
 
-    # Resolve tenant from channel identifier
-    tenant_id = TENANT_REGISTRY.get(f"{channel}:{channel_id}")
+    # tenant_id comes from the request header -- no resolution needed
+    tenant_id = request.headers["X-Tenant-Id"]
+    tenant_config = load_tenant_config(tenant_id)
+
     config = {"configurable": {"thread_id": f"{tenant_id}:{session_id}"}}
 
     # Check if graph is mid-interrupt (waiting for user input) or starting fresh
@@ -771,6 +759,8 @@ async def handle_message(channel: str, raw_event: dict):
         # New conversation turn -- invoke from START
         result = await graph.ainvoke({
             "messages": [HumanMessage(content=user_message)],
+            "tenant_id": tenant_id,
+            "tenant_config": tenant_config,
             "channel": channel,
             "channel_identifier": channel_id,
             "session_id": session_id,
@@ -967,8 +957,7 @@ chatbot/
 │   │   └── facebook.py             # Facebook Messenger adapter
 │   ├── tenants/
 │   │   ├── __init__.py
-│   │   ├── resolver.py             # Tenant resolution from channel ID
-│   │   ├── config.py               # Tenant config loader
+│   │   ├── config.py               # Tenant config loader (by tenant_id from header)
 │   │   └── client.py               # TenantAPIClient
 │   ├── llm/
 │   │   ├── __init__.py
@@ -1009,13 +998,10 @@ chatbot/
 ## 14. Data Flow Summary
 
 ```
-User Message
+User Message + tenant_id (request header)
      │
      ▼
-Channel Adapter (parse_inbound)
-     │
-     ▼
-Tenant Resolver (channel_id -> tenant_config)
+Channel Adapter (parse_inbound + load_tenant_config)
      │
      ▼
 LangGraph.invoke / Command(resume=...)
