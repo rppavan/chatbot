@@ -27,14 +27,14 @@ graph TD
     IfDelivered --> InitiateExchange[Initiate Exchange]
     
     %% Return Logistics
-    InitiateReturn --> {SEND to Pragma}
+    InitiateReturn --> SendToPragma[SEND to Pragma]
     InitiateReturn --> Return40[40% for return / Refund]
     
     Return40 --> CallReturnStatus1[Call current return and exchange status fetch for each item]
     CallReturnStatus1 --> OutputUTRDate1[Output - UTR, Date]
     
     %% Exchange Logistics
-    InitiateExchange --> {SEND to Pragma}
+    InitiateExchange --> SendToPragma2[SEND to Pragma]
     InitiateExchange --> AddCaseDiff[Add case for differential amount?]
     AddCaseDiff --> CallReturnStatus2[Call current return and exchange status fetch for each item]
     CallReturnStatus2 --> OutputUTRDate2[Output - UTR, Date]
