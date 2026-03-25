@@ -8,13 +8,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env  # then fill in OPENAI_API_KEY
+cp .env.example .env  # then fill in GOOGLE_API_KEY
 ```
 
 Required `.env` variables:
 ```
-OPENAI_API_KEY=...
-OPENAI_MODEL=gpt-4o-mini
+GOOGLE_API_KEY=...
+GEMINI_MODEL=gemini-3.1-flash-lite-preview
 MOCK_API_BASE_URL=http://localhost:8100
 SQLITE_DB_PATH=chatbot_memory.db
 CHATBOT_PORT=8000
@@ -40,7 +40,7 @@ Tests require both services to be running:
 python -m pytest tests/ -v
 
 # Run a single test
-python -m pytest tests/test_integration.py::TestDummyAPI::test_search_orders -v
+python -m pytest tests/test_integration.py::TestMockAPI::test_order_search -v
 ```
 
 Sample manual test:

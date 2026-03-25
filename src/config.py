@@ -8,8 +8,8 @@ load_dotenv()
 
 
 # --- Environment Settings ---
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite-preview")
 MOCK_API_BASE_URL = os.getenv("MOCK_API_BASE_URL", "http://localhost:8100")
 SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH", "chatbot_memory.db")
 CHATBOT_PORT = int(os.getenv("CHATBOT_PORT", "8000"))

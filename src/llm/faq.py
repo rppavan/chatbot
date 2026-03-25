@@ -2,9 +2,9 @@
 FAQ Answer — simple LLM-based FAQ answering (no RAG for MVP).
 Uses hardcoded FAQ context per category.
 """
-from langchain_openai import ChatOpenAI
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
-from src.config import OPENAI_API_KEY, OPENAI_MODEL
+from src.config import GOOGLE_API_KEY, GEMINI_MODEL
 
 
 FAQ_KNOWLEDGE = {
@@ -70,9 +70,9 @@ async def answer_faq(question: str, store_name: str, category: str | None = None
         # Use all FAQ knowledge
         context = "\n".join(FAQ_KNOWLEDGE.values())
 
-    llm = ChatOpenAI(
-        model=OPENAI_MODEL,
-        api_key=OPENAI_API_KEY,
+    llm = ChatGoogleGenerativeAI(
+        model=GEMINI_MODEL,
+        google_api_key=GOOGLE_API_KEY,
         temperature=0.3,
     )
 

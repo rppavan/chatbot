@@ -22,7 +22,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # Configure environment variables
-cp .env.example .env  # Edit with your OPENAI_API_KEY
+cp .env.example .env  # Edit with your GOOGLE_API_KEY
 ```
 
 ### 2. Start the Mock API Server
