@@ -47,6 +47,17 @@ async def get_profile(
         return resp.json()
 
 
+async def lookup_user_by_phone(
+    phone: str,
+    base_url: str = MOCK_API_BASE_URL,
+) -> list[dict]:
+    """Look up users by phone number. Returns a list of matching user objects."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{base_url}/v2/user", params={"phone": phone})
+        resp.raise_for_status()
+        return resp.json()
+
+
 async def get_addresses(
     user_id: str,
     auth_token: str | None = None,

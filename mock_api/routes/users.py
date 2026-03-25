@@ -1,13 +1,30 @@
 """User routes for the mock API service."""
 import copy
 import uuid
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 
 from mock_api.data import USERS
 
 router = APIRouter()
+
+
+# GET /v2/user?phone=...
+@router.get("/v2/user")
+async def lookup_user_by_phone(phone: str = Query(..., description="Phone number to look up")):
+    """Look up users by phone number. Returns an array of matching user objects."""
+    results = []
+    for user in USERS.values():
+        if user["phone"] == phone:
+            results.append({
+                "id": user["id"],
+                "name": user["name"],
+                "email": user["email"],
+                "phone": user["phone"],
+                "is_registered": user["is_registered"],
+            })
+    return results
 
 
 class AddressCreate(BaseModel):

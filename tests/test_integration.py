@@ -16,13 +16,20 @@ MOCK_API_URL = "http://localhost:8100"
 HEADERS = {"X-Tenant-Id": "store-a"}
 
 
-async def chat(message: str, session_id: str = "test-session-001") -> dict:
+async def chat(message: str, session_id: str = "test-session-001", user_id: str | None = None) -> dict:
     """Send a chat message and return the response."""
+    headers = {
+        **HEADERS,
+        "X-TMRW-User-Session": session_id,
+    }
+    if user_id:
+        headers["X-TMRW-User-Id"] = user_id
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         resp = await client.post(
             f"{BASE_URL}/chat",
-            json={"message": message, "session_id": session_id},
-            headers=HEADERS,
+            json={"message": message},
+            headers=headers,
         )
         resp.raise_for_status()
         return resp.json()
@@ -147,6 +154,28 @@ class TestMockAPI:
             assert data["success"] is True
 
 
+class TestUserLookup:
+    """Test the phone-based user lookup endpoint."""
+
+    @pytest.mark.asyncio
+    async def test_lookup_existing_user(self):
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{MOCK_API_URL}/v2/user", params={"phone": "+919876543210"})
+            assert resp.status_code == 200
+            data = resp.json()
+            assert len(data) == 1
+            assert data[0]["id"] == "user-001"
+            assert data[0]["name"] == "Priya Sharma"
+
+    @pytest.mark.asyncio
+    async def test_lookup_nonexistent_user(self):
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(f"{MOCK_API_URL}/v2/user", params={"phone": "+910000000000"})
+            assert resp.status_code == 200
+            data = resp.json()
+            assert len(data) == 0
+
+
 class TestChatEndpoint:
     """Test the chat endpoint basic functionality."""
 
@@ -165,6 +194,27 @@ class TestChatEndpoint:
         # Both should get responses (independent sessions)
         assert len(result1["responses"]) > 0
         assert len(result2["responses"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_missing_session_header(self):
+        """Test that missing X-TMRW-User-Session returns 400."""
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(
+                f"{BASE_URL}/chat",
+                json={"message": "Hi"},
+                headers=HEADERS,
+            )
+            assert resp.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_pre_authenticated_flow(self):
+        """Test that X-TMRW-User-Id header skips OTP and goes to welcome."""
+        result = await chat("Hi", session_id="test-preauth-001", user_id="user-001")
+        assert "responses" in result
+        assert len(result["responses"]) > 0
+        # Should not contain OTP prompts since user is pre-authenticated
+        combined = " ".join(result["responses"]).lower()
+        assert "otp" not in combined
 
 
 if __name__ == "__main__":

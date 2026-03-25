@@ -17,8 +17,9 @@ from langgraph.types import Command
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from src.state import ConversationState
-from src.config import load_tenant_config, SQLITE_DB_PATH, CHATBOT_PORT, DEFAULT_TENANT_ID
+from src.config import load_tenant_config, SQLITE_DB_PATH, CHATBOT_PORT, DEFAULT_TENANT_ID, MOCK_API_BASE_URL
 from src.graph.builder import build_graph
+from src.tools.user_tools import get_profile
 
 
 # ─── Global graph reference ─────────────────────────────────────────────
@@ -53,7 +54,6 @@ app = FastAPI(
 # ─── Request/Response Models ────────────────────────────────────────────
 class ChatRequest(BaseModel):
     message: str
-    session_id: str
     channel: Optional[str] = "web"
 
 
@@ -72,15 +72,22 @@ async def chat(request: Request, body: ChatRequest):
 
     Headers:
         X-Tenant-Id: tenant identifier (defaults to 'store-a')
+        X-TMRW-User-Session: session identifier (required)
+        X-TMRW-User-Id: user identifier (optional — skips OTP when provided)
     """
     global _graph
 
     if not _graph:
         raise HTTPException(status_code=503, detail="Chatbot not initialized")
 
-    # Extract tenant ID from header
+    # Extract headers
     tenant_id = request.headers.get("x-tenant-id", DEFAULT_TENANT_ID)
-    session_id = body.session_id
+    session_id = request.headers.get("x-tmrw-user-session")
+    user_id = request.headers.get("x-tmrw-user-id")
+
+    if not session_id:
+        raise HTTPException(status_code=400, detail="Missing required header: X-TMRW-User-Session")
+
     user_message = body.message
     channel = body.channel or "web"
 
@@ -135,6 +142,19 @@ async def chat(request: Request, body: ChatRequest):
                 "csat_collected": False,
                 "last_updated_at": time.time(),
             }
+
+            # Pre-authenticate if X-TMRW-User-Id header is provided
+            if user_id:
+                try:
+                    base_url = tenant_config.get("api_base_url", MOCK_API_BASE_URL)
+                    profile = await get_profile(user_id, base_url=base_url)
+                    initial_state["is_authenticated"] = True
+                    initial_state["user_id"] = user_id
+                    initial_state["user_name"] = profile.get("name")
+                    initial_state["user_phone"] = profile.get("phone")
+                except Exception:
+                    pass  # Fall through to normal OTP flow if profile fetch fails
+
             result = await _graph.ainvoke(initial_state, config=config)
     except Exception as e:
         # On error, return a friendly message
