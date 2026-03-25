@@ -15,7 +15,7 @@ Required `.env` variables:
 ```
 OPENAI_API_KEY=...
 OPENAI_MODEL=gpt-4o-mini
-DUMMY_API_BASE_URL=http://localhost:8100
+MOCK_API_BASE_URL=http://localhost:8100
 SQLITE_DB_PATH=chatbot_memory.db
 CHATBOT_PORT=8000
 ```
@@ -26,7 +26,7 @@ The chatbot and dummy API are independent services that must both run for end-to
 
 ```bash
 # Terminal 1 — mock e-commerce backend (port 8100)
-python -m dummy_api.app
+python -m mock_api.app
 
 # Terminal 2 — chatbot service (port 8000)
 python -m src.main
@@ -106,6 +106,6 @@ Thin async `httpx` wrappers — no business logic:
 - `oms_tools.py` — order search, details, tracking, cancel/return/exchange options and actions
 - `user_tools.py` — OTP request/verify, profile, addresses
 
-### Dummy API (`dummy_api/`)
+### Mock API (`mock_api/`)
 
-Mock e-commerce backend on port 8100 with in-memory data. Seed data in `dummy_api/data.py` includes 3 users and 6 orders covering all statuses (pre-dispatch, shipped, out-for-delivery, delivered, cancelled, return_initiated). Use these for development and testing instead of a real OMS.
+Mock e-commerce backend on port 8100 with in-memory data. Seed data in `mock_api/data.py` includes 3 users and 6 orders covering all statuses (pre-dispatch, shipped, out-for-delivery, delivered, cancelled, return_initiated). Use these for development and testing instead of a real OMS.

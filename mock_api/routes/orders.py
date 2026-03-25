@@ -1,4 +1,4 @@
-"""Order routes for the dummy API service."""
+"""Order routes for the mock API service."""
 import copy
 import uuid
 from datetime import datetime, timedelta
@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from typing import Optional
 
-from dummy_api.data import ORDERS, PRODUCTS, PHONE_TO_USER, get_orders_for_user, get_orders_by_phone
+from mock_api.data import ORDERS, PRODUCTS, PHONE_TO_USER, get_orders_for_user, get_orders_by_phone
 
 router = APIRouter()
 

@@ -2,12 +2,12 @@
 User Tools — HTTP client wrappers for user/auth API calls.
 """
 import httpx
-from src.config import DUMMY_API_BASE_URL
+from src.config import MOCK_API_BASE_URL
 
 
 async def request_login_otp(
     phone: str,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Request OTP for login."""
     async with httpx.AsyncClient() as client:
@@ -19,7 +19,7 @@ async def request_login_otp(
 async def verify_login_otp(
     phone: str,
     otp: str,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Verify OTP and get auth token + user info."""
     async with httpx.AsyncClient() as client:
@@ -34,7 +34,7 @@ async def verify_login_otp(
 async def get_profile(
     user_id: str,
     auth_token: str | None = None,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Get user profile."""
     headers = {}
@@ -50,7 +50,7 @@ async def get_profile(
 async def get_addresses(
     user_id: str,
     auth_token: str | None = None,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Get user addresses."""
     headers = {}

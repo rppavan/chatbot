@@ -25,10 +25,10 @@ pip install -r requirements.txt
 cp .env.example .env  # Edit with your OPENAI_API_KEY
 ```
 
-### 2. Start the Dummy API Server
+### 2. Start the Mock API Server
 
 ```bash
-python -m dummy_api.app
+python -m mock_api.app
 # Runs on http://localhost:8100
 ```
 
@@ -83,7 +83,7 @@ chatbot/
 │   └── llm/                # LLM integration
 │       ├── intent.py       # Intent classification
 │       └── faq.py          # FAQ answer generation
-├── dummy_api/              # Mock API service
+├── mock_api/               # Mock API service
 │   ├── app.py              # FastAPI server (port 8100)
 │   ├── data.py             # Seed data
 │   └── routes/             # API route handlers
@@ -96,7 +96,7 @@ chatbot/
 
 ```bash
 # Start both servers first (in separate terminals)
-python -m dummy_api.app
+python -m mock_api.app
 python -m src.main
 
 # Run tests

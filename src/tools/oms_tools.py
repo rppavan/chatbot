@@ -3,14 +3,14 @@ OMS Tools — HTTP client wrappers for order management API calls.
 These are called deterministically by graph nodes, not by the LLM agent.
 """
 import httpx
-from src.config import DUMMY_API_BASE_URL
+from src.config import MOCK_API_BASE_URL
 
 
 async def search_orders(
     user_id: str | None = None,
     phone: str | None = None,
     auth_token: str | None = None,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Search orders by user_id or phone number."""
     params = {}
@@ -32,7 +32,7 @@ async def search_orders(
 async def get_order(
     order_id: str,
     auth_token: str | None = None,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Get full order details by order ID."""
     headers = {}
@@ -48,7 +48,7 @@ async def get_order(
 async def get_tracking_summary(
     order_id: str,
     auth_token: str | None = None,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Get tracking summary for an order."""
     headers = {}
@@ -64,7 +64,7 @@ async def get_tracking_summary(
 async def get_cancel_options(
     order_id: str,
     auth_token: str | None = None,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Get cancellation options for an order."""
     headers = {}
@@ -81,7 +81,7 @@ async def cancel_order(
     order_id: str,
     reason: str = "Customer requested cancellation",
     auth_token: str | None = None,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Cancel an order."""
     headers = {}
@@ -101,7 +101,7 @@ async def cancel_order(
 async def get_return_options(
     order_id: str,
     auth_token: str | None = None,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Get return options for an order."""
     headers = {}
@@ -118,7 +118,7 @@ async def initiate_return(
     order_id: str,
     reason: str = "Product not as expected",
     auth_token: str | None = None,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Initiate a return for an order."""
     headers = {}
@@ -138,7 +138,7 @@ async def initiate_return(
 async def get_exchange_options(
     order_id: str,
     auth_token: str | None = None,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Get exchange options for an order."""
     headers = {}
@@ -158,7 +158,7 @@ async def initiate_exchange(
     new_variant_id: str,
     reason: str = "Size/Color change",
     auth_token: str | None = None,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Initiate an exchange for an order."""
     headers = {}

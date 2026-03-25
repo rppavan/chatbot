@@ -2,13 +2,13 @@
 Tracking Tools — HTTP client wrappers for tracking API calls.
 """
 import httpx
-from src.config import DUMMY_API_BASE_URL
+from src.config import MOCK_API_BASE_URL
 
 
 async def get_tracking_summary(
     order_id: str,
     auth_token: str | None = None,
-    base_url: str = DUMMY_API_BASE_URL,
+    base_url: str = MOCK_API_BASE_URL,
 ) -> dict:
     """Get tracking summary for an order (delegates to OMS)."""
     headers = {}

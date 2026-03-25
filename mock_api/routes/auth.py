@@ -1,10 +1,10 @@
-"""Auth routes for the dummy API service."""
+"""Auth routes for the mock API service."""
 import uuid
 import random
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from dummy_api.data import USERS, PHONE_TO_USER, OTP_STORE
+from mock_api.data import USERS, PHONE_TO_USER, OTP_STORE
 
 router = APIRouter()
 

@@ -1,11 +1,11 @@
-"""User routes for the dummy API service."""
+"""User routes for the mock API service."""
 import copy
 import uuid
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 
-from dummy_api.data import USERS
+from mock_api.data import USERS
 
 router = APIRouter()
 
@@ -165,7 +165,7 @@ async def get_wishlist(user_id: str):
 # GET /v2/product/{id}
 @router.get("/v2/product/{product_id}")
 async def get_product(product_id: str):
-    from dummy_api.data import PRODUCTS
+    from mock_api.data import PRODUCTS
     product = PRODUCTS.get(product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")

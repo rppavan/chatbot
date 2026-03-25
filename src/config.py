@@ -10,7 +10,7 @@ load_dotenv()
 # --- Environment Settings ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-DUMMY_API_BASE_URL = os.getenv("DUMMY_API_BASE_URL", "http://localhost:8100")
+MOCK_API_BASE_URL = os.getenv("MOCK_API_BASE_URL", "http://localhost:8100")
 SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH", "chatbot_memory.db")
 CHATBOT_PORT = int(os.getenv("CHATBOT_PORT", "8000"))
 
@@ -19,7 +19,7 @@ CHATBOT_PORT = int(os.getenv("CHATBOT_PORT", "8000"))
 TENANT_CONFIGS = {
     "store-a": {
         "store_name": "UrbanStyle",
-        "api_base_url": DUMMY_API_BASE_URL,
+        "api_base_url": MOCK_API_BASE_URL,
         "support_email": "support@urbanstyle.com",
         "support_phone": "+911234567890",
         "return_window_days": 7,
@@ -27,7 +27,7 @@ TENANT_CONFIGS = {
     },
     "store-b": {
         "store_name": "TechGadgets",
-        "api_base_url": DUMMY_API_BASE_URL,
+        "api_base_url": MOCK_API_BASE_URL,
         "support_email": "help@techgadgets.com",
         "support_phone": "+910987654321",
         "return_window_days": 15,

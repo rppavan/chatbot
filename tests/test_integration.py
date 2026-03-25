@@ -1,6 +1,6 @@
 """
 Integration tests for the CX chatbot.
-Tests end-to-end flows against the dummy API.
+Tests end-to-end flows against the mock API.
 """
 import asyncio
 import httpx
@@ -12,7 +12,7 @@ import os
 import sys
 
 BASE_URL = "http://localhost:8000"
-DUMMY_API_URL = "http://localhost:8100"
+MOCK_API_URL = "http://localhost:8100"
 HEADERS = {"X-Tenant-Id": "store-a"}
 
 
@@ -53,21 +53,21 @@ class TestHealthCheck:
             assert data["status"] == "ok"
 
     @pytest.mark.asyncio
-    async def test_dummy_api_health(self):
+    async def test_mock_api_health(self):
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{DUMMY_API_URL}/health")
+            resp = await client.get(f"{MOCK_API_URL}/health")
             assert resp.status_code == 200
             data = resp.json()
             assert data["status"] == "ok"
 
 
-class TestDummyAPI:
-    """Test the dummy API endpoints directly."""
+class TestMockAPI:
+    """Test the mock API endpoints directly."""
 
     @pytest.mark.asyncio
     async def test_order_search(self):
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{DUMMY_API_URL}/v1/order-search", params={"user_id": "user-001"})
+            resp = await client.get(f"{MOCK_API_URL}/v1/order-search", params={"user_id": "user-001"})
             assert resp.status_code == 200
             data = resp.json()
             assert len(data["orders"]) > 0
@@ -75,7 +75,7 @@ class TestDummyAPI:
     @pytest.mark.asyncio
     async def test_get_order(self):
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{DUMMY_API_URL}/v1/order/ORD-10001")
+            resp = await client.get(f"{MOCK_API_URL}/v1/order/ORD-10001")
             assert resp.status_code == 200
             data = resp.json()
             assert data["id"] == "ORD-10001"
@@ -83,7 +83,7 @@ class TestDummyAPI:
     @pytest.mark.asyncio
     async def test_tracking_summary(self):
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{DUMMY_API_URL}/v1/order/ORD-10002/tracking-summary")
+            resp = await client.get(f"{MOCK_API_URL}/v1/order/ORD-10002/tracking-summary")
             assert resp.status_code == 200
             data = resp.json()
             assert data["status"] == "shipped"
@@ -92,7 +92,7 @@ class TestDummyAPI:
     @pytest.mark.asyncio
     async def test_cancel_options(self):
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{DUMMY_API_URL}/v1/order/ORD-10001/cancel_options")
+            resp = await client.get(f"{MOCK_API_URL}/v1/order/ORD-10001/cancel_options")
             assert resp.status_code == 200
             data = resp.json()
             assert data["can_cancel"] is True
@@ -100,7 +100,7 @@ class TestDummyAPI:
     @pytest.mark.asyncio
     async def test_return_options(self):
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{DUMMY_API_URL}/v1/order/ORD-10004/return-options")
+            resp = await client.get(f"{MOCK_API_URL}/v1/order/ORD-10004/return-options")
             assert resp.status_code == 200
             data = resp.json()
             assert data["can_return"] is True
@@ -108,7 +108,7 @@ class TestDummyAPI:
     @pytest.mark.asyncio
     async def test_exchange_options(self):
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{DUMMY_API_URL}/v1/order/ORD-10004/exchange-options")
+            resp = await client.get(f"{MOCK_API_URL}/v1/order/ORD-10004/exchange-options")
             assert resp.status_code == 200
             data = resp.json()
             assert data["can_exchange"] is True
@@ -118,7 +118,7 @@ class TestDummyAPI:
     async def test_login_otp(self):
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                f"{DUMMY_API_URL}/v2/user/auth/login/otp",
+                f"{MOCK_API_URL}/v2/user/auth/login/otp",
                 json={"phone": "+919876543210"},
             )
             assert resp.status_code == 200
@@ -129,7 +129,7 @@ class TestDummyAPI:
     @pytest.mark.asyncio
     async def test_user_profile(self):
         async with httpx.AsyncClient() as client:
-            resp = await client.get(f"{DUMMY_API_URL}/v2/user/user-001/profile")
+            resp = await client.get(f"{MOCK_API_URL}/v2/user/user-001/profile")
             assert resp.status_code == 200
             data = resp.json()
             assert data["name"] == "Priya Sharma"
@@ -139,7 +139,7 @@ class TestDummyAPI:
         """Test cancellation (resets data for next test run)."""
         async with httpx.AsyncClient() as client:
             resp = await client.post(
-                f"{DUMMY_API_URL}/v1/order/ORD-10001/cancel",
+                f"{MOCK_API_URL}/v1/order/ORD-10001/cancel",
                 json={"reason": "Test cancellation"},
             )
             assert resp.status_code == 200
