@@ -4,6 +4,7 @@ Run: python -m src.main
 """
 import time
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 
 import aiosqlite
@@ -19,7 +20,7 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from src.state import ConversationState
 from src.config import load_tenant_config, SQLITE_DB_PATH, CHATBOT_PORT, DEFAULT_TENANT_ID, MOCK_API_BASE_URL
 from src.graph.builder import build_graph
-from src.tools.user_tools import get_profile
+from src.tools.user_tools import get_profile, lookup_user_by_phone
 
 
 # ─── Global graph reference ─────────────────────────────────────────────
@@ -84,6 +85,7 @@ async def chat(request: Request, body: ChatRequest):
     tenant_id = request.headers.get("x-tenant-id", DEFAULT_TENANT_ID)
     session_id = request.headers.get("x-tmrw-user-session")
     user_id = request.headers.get("x-tmrw-user-id")
+    user_phone = request.headers.get("x-tmrw-user-phone")
 
     if not session_id:
         raise HTTPException(status_code=400, detail="Missing required header: X-TMRW-User-Session")
@@ -143,10 +145,11 @@ async def chat(request: Request, body: ChatRequest):
                 "last_updated_at": time.time(),
             }
 
-            # Pre-authenticate if X-TMRW-User-Id header is provided
+            # Pre-authenticate if user identity is provided via headers
+            base_url = tenant_config.get("api_base_url", MOCK_API_BASE_URL)
             if user_id:
+                # Direct user ID — fetch profile to populate name/phone
                 try:
-                    base_url = tenant_config.get("api_base_url", MOCK_API_BASE_URL)
                     profile = await get_profile(user_id, base_url=base_url)
                     initial_state["is_authenticated"] = True
                     initial_state["user_id"] = user_id
@@ -154,10 +157,21 @@ async def chat(request: Request, body: ChatRequest):
                     initial_state["user_phone"] = profile.get("phone")
                 except Exception:
                     pass  # Fall through to normal OTP flow if profile fetch fails
+            elif user_phone:
+                # Phone number — look up user, or authenticate with phone alone
+                initial_state["is_authenticated"] = True
+                initial_state["user_phone"] = user_phone
+                try:
+                    users = await lookup_user_by_phone(user_phone, base_url=base_url)
+                    if users:
+                        initial_state["user_id"] = users[0]["id"]
+                        initial_state["user_name"] = users[0].get("name")
+                except Exception:
+                    pass  # Authenticated by phone but no profile — still skip OTP
 
             result = await _graph.ainvoke(initial_state, config=config)
     except Exception as e:
-        # On error, return a friendly message
+        logging.exception("Graph invocation failed for session %s", session_id)
         return ChatResponse(
             session_id=session_id,
             responses=[f"I'm sorry, something went wrong. Please try again. (Error: {str(e)})"],

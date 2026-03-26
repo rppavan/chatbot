@@ -3,7 +3,7 @@ Delivered menu nodes — returns, exchanges, and post-delivery issue reporting.
 """
 import time
 from langchain_core.messages import AIMessage
-from langgraph.types import interrupt
+from src.nodes import interrupt
 
 from src.state import ConversationState
 from src.tools import oms_tools

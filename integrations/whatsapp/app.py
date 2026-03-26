@@ -52,6 +52,10 @@ async def resolve_user_id(phone: str) -> str | None:
 
 async def send_whatsapp_message(to_phone: str, text: str) -> None:
     """Send a text message via Meta WhatsApp Cloud API."""
+    if not WHATSAPP_ACCESS_TOKEN:
+        logger.error("WHATSAPP_ACCESS_TOKEN is not set — cannot send message")
+        return
+
     headers = {
         "Authorization": f"Bearer {WHATSAPP_ACCESS_TOKEN}",
         "Content-Type": "application/json",
@@ -76,6 +80,7 @@ async def forward_to_chatbot(phone: str, message: str, user_id: str | None) -> l
         "Content-Type": "application/json",
         "X-Tenant-Id": DEFAULT_TENANT_ID,
         "X-TMRW-User-Session": f"whatsapp:{phone}",
+        "X-TMRW-User-Phone": phone,
     }
     if user_id:
         headers["X-TMRW-User-Id"] = user_id
@@ -151,6 +156,7 @@ async def receive_webhook(request: Request):
 
                 # Send each response back via WhatsApp
                 for resp_text in responses:
+                    logger.info("Response to %s: %s", phone, resp_text[:200])
                     await send_whatsapp_message(raw_phone, resp_text)
 
     return {"status": "ok"}

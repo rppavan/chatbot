@@ -3,7 +3,8 @@ Pre-dispatch menu nodes — cancel, modify, address/phone change for orders not 
 """
 import time
 from langchain_core.messages import AIMessage
-from langgraph.types import interrupt, Command
+from langgraph.types import Command
+from src.nodes import interrupt
 
 from src.state import ConversationState
 from src.tools import oms_tools

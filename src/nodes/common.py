@@ -3,7 +3,7 @@ Common nodes — CSAT survey and close chat (terminal nodes).
 """
 import time
 from langchain_core.messages import AIMessage
-from langgraph.types import interrupt
+from src.nodes import interrupt
 
 from src.state import ConversationState
 
