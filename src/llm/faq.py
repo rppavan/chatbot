@@ -74,6 +74,7 @@ async def answer_faq(question: str, store_name: str, category: str | None = None
         model=GEMINI_MODEL,
         google_api_key=GOOGLE_API_KEY,
         temperature=0.3,
+        streaming=False,
     )
 
     chain = FAQ_PROMPT | llm
@@ -83,4 +84,7 @@ async def answer_faq(question: str, store_name: str, category: str | None = None
         "question": question,
     })
 
-    return result.content.strip()
+    content = result.content
+    if isinstance(content, list):
+        content = " ".join(str(part) for part in content)
+    return content.strip()

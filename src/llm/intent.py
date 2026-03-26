@@ -11,7 +11,8 @@ def get_llm():
     return ChatGoogleGenerativeAI(
         model=GEMINI_MODEL,
         google_api_key=GOOGLE_API_KEY,
-        temperature=0,
+        temperature=0.3,
+        streaming=False,
     )
 
 
@@ -38,7 +39,10 @@ async def classify_intent(user_message: str, valid_options: list[str]) -> str:
         "user_message": user_message,
         "valid_options": options_str,
     })
-    response = result.content.strip().lower()
+    content = result.content
+    if isinstance(content, list):
+        content = " ".join(str(part) for part in content)
+    response = content.strip().lower()
 
     # Match against valid options (case-insensitive)
     for opt in valid_options:
