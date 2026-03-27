@@ -38,7 +38,7 @@ def delivered_menu(state: ConversationState) -> dict:
     user_input = interrupt(menu_text)
 
     return {
-        "messages": [AIMessage(content=menu_text)],
+        "messages": [],
         "extracted_slots": {"dl_selection": user_input.strip()},
         "last_updated_at": time.time(),
     }
@@ -114,7 +114,7 @@ async def delivered_return(state: ConversationState) -> dict:
 
     if user_input.strip().lower() in ("cancel", "back", "no"):
         return {
-            "messages": [AIMessage(content=confirm_msg), AIMessage(content="Return cancelled. Returning to menu.")],
+            "messages": [AIMessage(content="Return cancelled. Returning to menu.")],
             "last_updated_at": time.time(),
         }
 
@@ -141,7 +141,7 @@ async def delivered_return(state: ConversationState) -> dict:
         msg = f"❌ Failed to initiate return: {str(e)}"
 
     return {
-        "messages": [AIMessage(content=confirm_msg), AIMessage(content=msg)],
+        "messages": [AIMessage(content=msg)],
         "return_options": options,
         "current_flow": "return",
         "last_updated_at": time.time(),
@@ -203,7 +203,7 @@ async def delivered_exchange(state: ConversationState) -> dict:
 
     if user_input.strip().lower() in ("cancel", "back", "no"):
         return {
-            "messages": [AIMessage(content=variant_msg), AIMessage(content="Exchange cancelled.")],
+            "messages": [AIMessage(content="Exchange cancelled.")],
             "last_updated_at": time.time(),
         }
 
@@ -250,7 +250,7 @@ async def delivered_exchange(state: ConversationState) -> dict:
         msg = f"❌ Failed to initiate exchange: {str(e)}"
 
     return {
-        "messages": [AIMessage(content=variant_msg), AIMessage(content=msg)],
+        "messages": [AIMessage(content=msg)],
         "exchange_options": options,
         "exchange_differential_amount": diff_amount,
         "current_flow": "exchange",

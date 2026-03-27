@@ -49,7 +49,7 @@ def main_menu(state: ConversationState) -> dict:
     user_input = interrupt(menu_text)
 
     return {
-        "messages": [AIMessage(content=menu_text)],
+        "messages": [],
         "awaiting_input": None,
         "extracted_slots": {"menu_selection": user_input.strip()},
         "last_updated_at": time.time(),

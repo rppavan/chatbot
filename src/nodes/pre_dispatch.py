@@ -36,7 +36,7 @@ def pre_dispatch_menu(state: ConversationState) -> dict:
     user_input = interrupt(menu_text)
 
     return {
-        "messages": [AIMessage(content=menu_text)],
+        "messages": [],
         "extracted_slots": {"pd_selection": user_input.strip()},
         "last_updated_at": time.time(),
     }
@@ -105,7 +105,7 @@ async def pre_dispatch_cancel(state: ConversationState) -> dict:
 
     if user_input.strip().lower() in ("no", "back", "cancel"):
         return {
-            "messages": [AIMessage(content=confirm_msg), AIMessage(content="Okay, cancellation aborted. Returning to menu.")],
+            "messages": [AIMessage(content="Okay, cancellation aborted. Returning to menu.")],
             "last_updated_at": time.time(),
         }
 
@@ -131,7 +131,7 @@ async def pre_dispatch_cancel(state: ConversationState) -> dict:
         msg = f"❌ Failed to cancel order: {str(e)}"
 
     return {
-        "messages": [AIMessage(content=confirm_msg), AIMessage(content=msg)],
+        "messages": [AIMessage(content=msg)],
         "cancel_options": options,
         "last_updated_at": time.time(),
     }

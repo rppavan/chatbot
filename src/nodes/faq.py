@@ -42,7 +42,7 @@ def faq_categories(state: ConversationState) -> dict:
     user_input = interrupt(menu_text)
 
     return {
-        "messages": [AIMessage(content=menu_text)],
+        "messages": [],
         "extracted_slots": {"faq_input": user_input.strip()},
         "current_flow": "faq",
         "last_updated_at": time.time(),
@@ -100,7 +100,7 @@ async def faq_answer_node(state: ConversationState) -> dict:
 
     if user_input.strip().lower() in ("no", "main menu", "back", "done"):
         return {
-            "messages": [AIMessage(content=follow_up)],
+            "messages": [],
             "last_updated_at": time.time(),
         }
 
@@ -111,6 +111,6 @@ async def faq_answer_node(state: ConversationState) -> dict:
         follow_answer = "I'm sorry, I couldn't process that. Let me connect you with support."
 
     return {
-        "messages": [AIMessage(content=follow_up), AIMessage(content=follow_answer)],
+        "messages": [AIMessage(content=follow_answer)],
         "last_updated_at": time.time(),
     }

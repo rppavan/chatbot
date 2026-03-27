@@ -62,7 +62,7 @@ class ChatResponse(BaseModel):
     session_id: str
     responses: list[str]
     is_escalated: bool = False
-    awaiting_input: Optional[str] = None
+    awaiting_input: bool = False
 
 
 # ─── Chat Endpoint ──────────────────────────────────────────────────────
@@ -119,6 +119,13 @@ async def chat(request: Request, body: ChatRequest):
         if (time.time() - snapshot.values["last_updated_at"]) > 3600:
             # Session expired — start fresh
             snapshot = None
+
+    # Count existing AI messages before invoking so we only return new ones
+    prior_ai_count = 0
+    if snapshot and snapshot.values and "messages" in snapshot.values:
+        prior_ai_count = sum(
+            1 for m in snapshot.values["messages"] if isinstance(m, AIMessage)
+        )
 
     try:
         # Determine if we're resuming an interrupted flow or starting fresh
@@ -177,24 +184,25 @@ async def chat(request: Request, body: ChatRequest):
             responses=[f"I'm sorry, something went wrong. Please try again. (Error: {str(e)})"],
         )
 
-    # Extract AI messages from result
+    # Extract only NEW AI messages added in this turn
     responses = []
     if result and "messages" in result:
-        for msg in result["messages"]:
-            if isinstance(msg, AIMessage) and msg.content:
-                responses.append(msg.content)
+        ai_messages = [m for m in result["messages"] if isinstance(m, AIMessage) and m.content]
+        new_messages = ai_messages[prior_ai_count:]
+        responses = [m.content for m in new_messages]
 
-    # If no responses were generated, check if the graph is waiting for input
-    if not responses:
-        # Check if graph is in interrupt state
-        try:
-            new_snapshot = await _graph.aget_state(config)
-            if new_snapshot and new_snapshot.next:
-                # Graph is waiting — the interrupt value contains the prompt
-                # Return a generic prompt
-                responses = ["How can I help you today?"]
-        except Exception:
-            pass
+    # Include interrupt prompt for the current waiting state (what the bot is asking next)
+    awaiting_input = False
+    try:
+        new_snapshot = await _graph.aget_state(config)
+        if new_snapshot and new_snapshot.tasks:
+            for task in new_snapshot.tasks:
+                for intr in task.interrupts:
+                    if intr.value:
+                        responses.append(str(intr.value))
+                        awaiting_input = True
+    except Exception:
+        pass
 
     if not responses:
         responses = ["I'm here to help! Please type your message."]
@@ -203,7 +211,7 @@ async def chat(request: Request, body: ChatRequest):
         session_id=session_id,
         responses=responses,
         is_escalated=result.get("is_escalated", False) if result else False,
-        awaiting_input=result.get("awaiting_input") if result else None,
+        awaiting_input=awaiting_input,
     )
 
 

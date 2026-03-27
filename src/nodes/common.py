@@ -32,7 +32,7 @@ def csat_survey(state: ConversationState) -> dict:
         thank_msg = f"Thank you for your feedback (Rating: {rating})! Have a great day! 👋"
 
     return {
-        "messages": [AIMessage(content=csat_msg), AIMessage(content=thank_msg)],
+        "messages": [AIMessage(content=thank_msg)],
         "csat_collected": True,
         "last_updated_at": time.time(),
     }

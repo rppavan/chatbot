@@ -36,7 +36,7 @@ def shipped_menu(state: ConversationState) -> dict:
     user_input = interrupt(menu_text)
 
     return {
-        "messages": [AIMessage(content=menu_text)],
+        "messages": [],
         "extracted_slots": {"sh_selection": user_input.strip()},
         "last_updated_at": time.time(),
     }
@@ -117,7 +117,7 @@ async def shipped_cancel(state: ConversationState) -> dict:
 
     if user_input.strip().lower() not in ("yes", "y", "proceed"):
         return {
-            "messages": [AIMessage(content=confirm_msg), AIMessage(content="Okay, no changes made.")],
+            "messages": [AIMessage(content="Okay, no changes made.")],
             "last_updated_at": time.time(),
         }
 
@@ -137,7 +137,7 @@ async def shipped_cancel(state: ConversationState) -> dict:
         msg = f"❌ Failed to cancel order: {str(e)}"
 
     return {
-        "messages": [AIMessage(content=confirm_msg), AIMessage(content=msg)],
+        "messages": [AIMessage(content=msg)],
         "last_updated_at": time.time(),
     }
 

@@ -115,7 +115,7 @@ def show_orders(state: ConversationState) -> dict:
             selected = orders[0]
 
     return {
-        "messages": [AIMessage(content=menu_text)],
+        "messages": [],
         "selected_order_id": selected["id"],
         "selected_order": selected,
         "order_status": _normalize_status(selected.get("fulfillment_status", "")),

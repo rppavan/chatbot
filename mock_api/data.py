@@ -124,6 +124,26 @@ USERS = {
         ],
         "wallet_balance": 0.00,
     },
+    "user-004": {
+        "id": "user-004",
+        "name": "Vikram Patel",
+        "email": "vikram.patel@example.com",
+        "phone": "+919876543213",
+        "is_registered": True,
+        "addresses": [
+            {
+                "id": "addr-005",
+                "label": "Home",
+                "line1": "23, Brigade Road",
+                "line2": "",
+                "city": "Bangalore",
+                "state": "Karnataka",
+                "pincode": "560025",
+                "is_default": True,
+            }
+        ],
+        "wallet_balance": 200.00,
+    },
 }
 
 # Phone → user_id lookup

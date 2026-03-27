@@ -38,7 +38,7 @@ def guest_flow(state: ConversationState) -> dict:
 
     # Store phone for OTP flow
     return {
-        "messages": [AIMessage(content=phone_prompt)],
+        "messages": [],
         "user_phone": user_input.strip(),
         "awaiting_input": "otp",
         "otp_requested": False,
@@ -65,7 +65,7 @@ async def handle_otp(state: ConversationState) -> dict:
         user_otp = interrupt(otp_msg)
 
         return {
-            "messages": [AIMessage(content=otp_msg)],
+            "messages": [],
             "otp_requested": True,
             "otp_type": "login",
             "awaiting_input": "otp_verify",
