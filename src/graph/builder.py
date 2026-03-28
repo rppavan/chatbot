@@ -8,7 +8,7 @@ from src.state import ConversationState
 from src.config import SQLITE_DB_PATH
 
 # Import all node functions
-from src.nodes.auth import check_user, route_auth, guest_flow, handle_otp
+from src.nodes.auth import check_user, route_auth, route_handle_otp, guest_flow, request_otp, handle_otp
 from src.nodes.welcome import welcome, main_menu, route_main_menu
 from src.nodes.orders import fetch_orders, show_orders, route_by_status
 from src.nodes.pre_dispatch import (
@@ -42,6 +42,7 @@ def build_graph(checkpointer=None):
     # Auth flow
     builder.add_node("check_user", check_user)
     builder.add_node("guest_flow", guest_flow)
+    builder.add_node("request_otp", request_otp)
     builder.add_node("handle_otp", handle_otp)
 
     # Welcome & main menu
@@ -99,11 +100,15 @@ def build_graph(checkpointer=None):
         "guest_flow": "guest_flow",
     })
 
-    # Guest flow → OTP verification
-    builder.add_edge("guest_flow", "handle_otp")
+    # Guest flow → OTP request → OTP verification
+    builder.add_edge("guest_flow", "request_otp")
+    builder.add_edge("request_otp", "handle_otp")
 
-    # OTP → welcome (on success, the graph will be re-invoked with is_authenticated=True)
-    builder.add_edge("handle_otp", "welcome")
+    # OTP → welcome on success, or loop back for retry on failure
+    builder.add_conditional_edges("handle_otp", route_handle_otp, {
+        "welcome": "welcome",
+        "handle_otp": "handle_otp",
+    })
 
     # Welcome → main menu (wait for user selection)
     builder.add_edge("welcome", "main_menu")

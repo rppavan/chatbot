@@ -62,7 +62,7 @@ async def fetch_orders(state: ConversationState) -> dict:
     }
 
 
-def show_orders(state: ConversationState) -> dict:
+async def show_orders(state: ConversationState) -> dict:
     """Show the list of orders and let the user pick one."""
     orders = state.get("orders", [])
 
@@ -114,11 +114,26 @@ def show_orders(state: ConversationState) -> dict:
         if not selected:
             selected = orders[0]
 
+    order_id = selected["id"]
+    detailed_order = selected
+    base_url = state.get("tenant_config", {}).get("api_base_url", "http://localhost:8100")
+    try:
+        detailed_order = await oms_tools.get_order(
+            order_id,
+            auth_token=state.get("auth_token"),
+            base_url=base_url,
+        )
+    except Exception:
+        # Fall back to the search summary if the detail fetch fails.
+        pass
+
     return {
         "messages": [],
-        "selected_order_id": selected["id"],
-        "selected_order": selected,
-        "order_status": _normalize_status(selected.get("fulfillment_status", "")),
+        "selected_order_id": order_id,
+        "selected_order": detailed_order,
+        "order_status": _normalize_status(
+            detailed_order.get("fulfillment_status", selected.get("fulfillment_status", ""))
+        ),
         "last_updated_at": time.time(),
     }
 
