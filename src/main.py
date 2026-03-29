@@ -88,7 +88,7 @@ async def chat(request: Request, body: ChatRequest):
     user_phone = request.headers.get("x-tmrw-user-phone")
 
     if not session_id:
-        raise HTTPException(status_code=400, detail="Missing required header: X-TMRW-User-Session")
+        raise HTTPException(status_code=400, detail="Missing required header: x-tmrw-user-session")
 
     user_message = body.message
     channel = body.channel or "web"
