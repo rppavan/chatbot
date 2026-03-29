@@ -19,29 +19,37 @@ MOCK_API_BASE_URL=http://localhost:8100
 SQLITE_DB_PATH=chatbot_memory.db
 CHATBOT_PORT=8000
 
-# WhatsApp integration (optional — only needed for whatsapp service)
+# WhatsApp integration (optional — only needed when receiving WhatsApp messages)
 WHATSAPP_VERIFY_TOKEN=...
 WHATSAPP_ACCESS_TOKEN=...
 WHATSAPP_PHONE_NUMBER_ID=...
-WHATSAPP_PORT=8200
-CHATBOT_BASE_URL=http://localhost:8000
 ```
 
 ## Running the Services
 
-The mock API must run separately. The chatbot and integrations can run together or individually:
+The mock API must run separately. The chatbot (including the WhatsApp webhook) runs as a single service:
 
 ```bash
 # Terminal 1 — mock e-commerce backend (port 8100)
 python -m mock_api.app
 
-# Terminal 2 — chatbot + all integrations in one process
+# Terminal 2 — unified chatbot service (port 8000)
 python run.py
 
-# Or run services individually:
-# python -m src.main                      # chatbot only (port 8000)
-# python -m integrations.whatsapp.app     # WhatsApp only (port 8200)
+# Or directly:
+python -m src.main
 ```
+
+## API Endpoints
+
+All endpoints are served on `CHATBOT_PORT` (default 8000):
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/chat` | Main chat endpoint |
+| `GET`  | `/webhook/whatsapp` | Meta webhook verification |
+| `POST` | `/webhook/whatsapp` | Incoming WhatsApp messages |
+| `GET`  | `/health` | Health check |
 
 ## Testing
 
@@ -63,7 +71,7 @@ curl -X POST http://localhost:8000/chat \
   -H "X-TMRW-User-Session: test-001" \
   -d '{"message": "Hi"}'
 
-# Pre-authenticated chat (skips OTP)
+# Pre-authenticated chat (skips OTP — simulates API gateway injecting identity)
 curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
   -H "X-Tenant-Id: store-a" \
@@ -77,17 +85,43 @@ curl "http://localhost:8100/v2/user?phone=%2B919876543210"
 
 ## Architecture
 
+### Deployment Model
+
+The service is designed to run behind an **API gateway** that handles authentication. The gateway injects user identity into headers before requests reach this service:
+- `X-TMRW-User-Id` — authenticated user ID (skips OTP flow)
+- `X-TMRW-User-Phone` — authenticated phone number (skips OTP flow)
+- `X-Tenant-Id` — tenant routing
+
+The WhatsApp webhook (`POST /whatsapp/webhook`) is also behind the API gateway. Meta webhook calls must be routed through the gateway to this endpoint.
+
 ### High-Level Data Flow
 
 ```
 POST /chat (headers: X-Tenant-Id, X-TMRW-User-Session, X-TMRW-User-Id)
-  → main.py: extract tenant + session from headers, build thread_id = "{tenant_id}:{session_id}"
+  → main.py: extract headers → call process_chat() in chat_handler.py
+  → chat_handler.py: build thread_id = "{tenant_id}:{session_id}"
   → if X-TMRW-User-Id present: fetch profile, set is_authenticated=True (skip OTP)
   → load snapshot from SQLite checkpoint (1-hour TTL invalidation)
   → if resuming interrupted flow: graph.ainvoke(Command(resume=user_message))
   → if fresh conversation: graph.ainvoke(initial_state)
   → extract AIMessage responses → return ChatResponse
+
+POST /whatsapp/webhook
+  → whatsapp/router.py: verify HMAC signature → parse Meta payload
+  → resolve phone → user_id via OMS API
+  → call process_chat() directly (no HTTP hop) → send responses via WhatsApp Cloud API
 ```
+
+### Key Modules
+
+| Module | Responsibility |
+|--------|---------------|
+| `src/main.py` | FastAPI app, lifespan, `/chat` endpoint, router mounting |
+| `src/chat_handler.py` | Graph reference, `process_chat()` — shared by all channels |
+| `src/graph/builder.py` | LangGraph StateGraph definition |
+| `src/state.py` | `ConversationState` TypedDict |
+| `src/config.py` | All environment-backed configuration |
+| `integrations/whatsapp/router.py` | WhatsApp APIRouter — webhook routes, Meta API calls |
 
 ### LangGraph State Machine (`src/graph/builder.py`)
 
@@ -137,12 +171,12 @@ Mock e-commerce backend on port 8100 with in-memory data. Seed data in `mock_api
 
 ### Integrations (`integrations/`)
 
-Channel integrations live under `integrations/`, each as its own sub-package.
+Channel integrations live under `integrations/`, each as its own sub-package, exported as FastAPI `APIRouter` instances and mounted in `src/main.py`.
 
-#### WhatsApp (`integrations/whatsapp/`)
+#### WhatsApp (`integrations/whatsapp/router.py`)
 
-Separate FastAPI service (port 8200) that bridges Meta WhatsApp Cloud API with the chatbot:
-- **`GET /webhook`** — Meta webhook verification
-- **`POST /webhook`** — Receives incoming WhatsApp messages, resolves phone → user_id via mock API, forwards to chatbot with pre-auth headers, sends response back via WhatsApp
+Mounted at `/whatsapp`. Bridges Meta WhatsApp Cloud API with the chatbot:
+- **`GET /webhook/whatsapp`** — Meta webhook verification
+- **`POST /webhook/whatsapp`** — Receives incoming messages, validates `X-Hub-Signature-256` HMAC, resolves phone → user_id, calls `process_chat()` directly, sends response via WhatsApp Cloud API
 - Session ID format: `whatsapp:{phone}` — ensures one conversation per phone number
 - Requires `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_ACCESS_TOKEN`, and `WHATSAPP_PHONE_NUMBER_ID` env vars

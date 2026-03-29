@@ -14,6 +14,11 @@ MOCK_API_BASE_URL = os.getenv("MOCK_API_BASE_URL", "http://localhost:8100")
 SQLITE_DB_PATH = os.getenv("SQLITE_DB_PATH", "chatbot_memory.db")
 CHATBOT_PORT = int(os.getenv("CHATBOT_PORT", "8000"))
 
+# --- WhatsApp Integration ---
+WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
+WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
+WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
+
 
 # --- Tenant Configurations ---
 TENANT_CONFIGS = {

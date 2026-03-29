@@ -1,47 +1,35 @@
 """
-FastAPI application — Chat endpoint for the CX chatbot.
+FastAPI application — unified entry point for the CX chatbot and channel integrations.
 Run: python -m src.main
 """
-import time
-import asyncio
 import logging
 from contextlib import asynccontextmanager
+from typing import Optional
 
 import aiosqlite
 import uvicorn
 from fastapi import FastAPI, Request, HTTPException
 from pydantic import BaseModel
-from typing import Optional
 
-from langchain_core.messages import HumanMessage, AIMessage
-from langgraph.types import Command
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
-from src.state import ConversationState
-from src.config import load_tenant_config, SQLITE_DB_PATH, CHATBOT_PORT, DEFAULT_TENANT_ID, MOCK_API_BASE_URL
+from src.config import SQLITE_DB_PATH, CHATBOT_PORT, DEFAULT_TENANT_ID
 from src.graph.builder import build_graph
-from src.tools.user_tools import get_profile, lookup_user_by_phone
+from src.chat_handler import setup as setup_chat, process_chat, ChatResponse
 
 
-# ─── Global graph reference ─────────────────────────────────────────────
-_graph = None
-_checkpointer = None
-_db_conn = None
-
-
+# ─── Lifespan ────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialize graph with checkpointer on startup."""
-    global _graph, _checkpointer, _db_conn
-    _db_conn = await aiosqlite.connect(SQLITE_DB_PATH)
-    _checkpointer = AsyncSqliteSaver(conn=_db_conn)
-    await _checkpointer.setup()
-    _graph = build_graph(checkpointer=_checkpointer)
-    print(f"✅ Chatbot graph initialized with SQLite checkpointer at {SQLITE_DB_PATH}")
+    """Initialize the LangGraph graph with its SQLite checkpointer."""
+    db_conn = await aiosqlite.connect(SQLITE_DB_PATH)
+    checkpointer = AsyncSqliteSaver(conn=db_conn)
+    await checkpointer.setup()
+    graph = build_graph(checkpointer=checkpointer)
+    setup_chat(graph)
+    logging.info("Chatbot graph initialized with SQLite checkpointer at %s", SQLITE_DB_PATH)
     yield
-    # Cleanup
-    if _db_conn:
-        await _db_conn.close()
+    await db_conn.close()
 
 
 app = FastAPI(
@@ -51,37 +39,29 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Mount channel integrations
+from integrations.whatsapp.router import router as whatsapp_router  # noqa: E402
+app.include_router(whatsapp_router, prefix="/webhook", tags=["whatsapp"])
 
-# ─── Request/Response Models ────────────────────────────────────────────
+
+# ─── Request model ────────────────────────────────────────────────────────
 class ChatRequest(BaseModel):
     message: str
     channel: Optional[str] = "web"
 
 
-class ChatResponse(BaseModel):
-    session_id: str
-    responses: list[str]
-    is_escalated: bool = False
-    awaiting_input: bool = False
-
-
-# ─── Chat Endpoint ──────────────────────────────────────────────────────
+# ─── Chat endpoint ────────────────────────────────────────────────────────
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: Request, body: ChatRequest):
     """
-    Main chat endpoint. Handles message routing, state resume, and response extraction.
+    Main chat endpoint.
 
-    Headers:
-        X-Tenant-Id: tenant identifier (defaults to 'store-a')
-        X-TMRW-User-Session: session identifier (required)
-        X-TMRW-User-Id: user identifier (optional — skips OTP when provided)
+    Headers (injected by the API gateway after authentication):
+        X-Tenant-Id:          Tenant identifier (defaults to 'store-a')
+        X-TMRW-User-Session:  Session identifier (required)
+        X-TMRW-User-Id:       Authenticated user ID — skips OTP when present
+        X-TMRW-User-Phone:    Authenticated phone number — skips OTP when present
     """
-    global _graph
-
-    if not _graph:
-        raise HTTPException(status_code=503, detail="Chatbot not initialized")
-
-    # Extract headers
     tenant_id = request.headers.get("x-tenant-id", DEFAULT_TENANT_ID)
     session_id = request.headers.get("x-tmrw-user-session")
     user_id = request.headers.get("x-tmrw-user-id")
@@ -90,133 +70,20 @@ async def chat(request: Request, body: ChatRequest):
     if not session_id:
         raise HTTPException(status_code=400, detail="Missing required header: x-tmrw-user-session")
 
-    user_message = body.message
-    channel = body.channel or "web"
-
-    # Build thread config for checkpointing
-    config = {"configurable": {"thread_id": f"{tenant_id}:{session_id}"}}
-
-    # Check existing state
-    try:
-        snapshot = await _graph.aget_state(config)
-    except Exception:
-        snapshot = None
-
-    # Check if conversation is escalated (bypass graph)
-    if snapshot and snapshot.values and snapshot.values.get("is_escalated"):
-        ticket_id = snapshot.values.get("freshdesk_ticket_id", "N/A")
-        return ChatResponse(
-            session_id=session_id,
-            responses=[
-                f"Your conversation is currently being handled by a support agent. "
-                f"Ticket ID: #{ticket_id}. Please wait for their response."
-            ],
-            is_escalated=True,
-        )
-
-    # Cache invalidation (TTL: 1 hour)
-    if snapshot and snapshot.values and snapshot.values.get("last_updated_at"):
-        if (time.time() - snapshot.values["last_updated_at"]) > 3600:
-            # Session expired — start fresh
-            snapshot = None
-
-    # Count existing AI messages before invoking so we only return new ones
-    prior_ai_count = 0
-    if snapshot and snapshot.values and "messages" in snapshot.values:
-        prior_ai_count = sum(
-            1 for m in snapshot.values["messages"] if isinstance(m, AIMessage)
-        )
-
-    try:
-        # Determine if we're resuming an interrupted flow or starting fresh
-        if snapshot and snapshot.next:
-            # Resume from interrupt — pass user message as the resume value
-            result = await _graph.ainvoke(
-                Command(resume=user_message),
-                config=config,
-            )
-        else:
-            # Fresh invocation
-            tenant_config = load_tenant_config(tenant_id)
-            initial_state = {
-                "messages": [HumanMessage(content=user_message)],
-                "tenant_id": tenant_id,
-                "tenant_config": tenant_config,
-                "channel": channel,
-                "channel_identifier": session_id,
-                "session_id": session_id,
-                "is_authenticated": False,
-                "otp_requested": False,
-                "is_escalated": False,
-                "csat_collected": False,
-                "last_updated_at": time.time(),
-            }
-
-            # Pre-authenticate if user identity is provided via headers
-            base_url = tenant_config.get("api_base_url", MOCK_API_BASE_URL)
-            if user_id:
-                # Direct user ID — fetch profile to populate name/phone
-                try:
-                    profile = await get_profile(user_id, base_url=base_url)
-                    initial_state["is_authenticated"] = True
-                    initial_state["user_id"] = user_id
-                    initial_state["user_name"] = profile.get("name")
-                    initial_state["user_phone"] = profile.get("phone")
-                except Exception:
-                    pass  # Fall through to normal OTP flow if profile fetch fails
-            elif user_phone:
-                # Phone number — look up user, or authenticate with phone alone
-                initial_state["is_authenticated"] = True
-                initial_state["user_phone"] = user_phone
-                try:
-                    users = await lookup_user_by_phone(user_phone, base_url=base_url)
-                    if users:
-                        initial_state["user_id"] = users[0]["id"]
-                        initial_state["user_name"] = users[0].get("name")
-                except Exception:
-                    pass  # Authenticated by phone but no profile — still skip OTP
-
-            result = await _graph.ainvoke(initial_state, config=config)
-    except Exception as e:
-        logging.exception("Graph invocation failed for session %s", session_id)
-        return ChatResponse(
-            session_id=session_id,
-            responses=[f"I'm sorry, something went wrong. Please try again. (Error: {str(e)})"],
-        )
-
-    # Extract only NEW AI messages added in this turn
-    responses = []
-    if result and "messages" in result:
-        ai_messages = [m for m in result["messages"] if isinstance(m, AIMessage) and m.content]
-        new_messages = ai_messages[prior_ai_count:]
-        responses = [m.content for m in new_messages]
-
-    # Include interrupt prompt for the current waiting state (what the bot is asking next)
-    awaiting_input = False
-    try:
-        new_snapshot = await _graph.aget_state(config)
-        if new_snapshot and new_snapshot.tasks:
-            for task in new_snapshot.tasks:
-                for intr in task.interrupts:
-                    if intr.value:
-                        responses.append(str(intr.value))
-                        awaiting_input = True
-    except Exception:
-        pass
-
-    if not responses:
-        responses = ["I'm here to help! Please type your message."]
-
-    return ChatResponse(
+    return await process_chat(
+        tenant_id=tenant_id,
         session_id=session_id,
-        responses=responses,
-        is_escalated=result.get("is_escalated", False) if result else False,
-        awaiting_input=awaiting_input,
+        user_id=user_id,
+        user_phone=user_phone,
+        message=body.message,
+        channel=body.channel or "web",
     )
 
 
+# ─── Health ───────────────────────────────────────────────────────────────
 @app.get("/health")
 async def health():
+    from src.chat_handler import _graph
     return {"status": "ok", "service": "chatbot", "graph_ready": _graph is not None}
 
 
