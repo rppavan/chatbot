@@ -66,11 +66,11 @@ async def route_shipped(state: ConversationState) -> str:
 async def shipped_track(state: ConversationState) -> dict:
     """Track a shipped order — display AWB, ETA, and tracking events."""
     order_id = state.get("selected_order_id", "")
-    base_url = state.get("tenant_config", {}).get("api_base_url", "http://localhost:8100")
+    tenant_id = state.get("tenant_id", "store-a")
 
     try:
         tracking = await oms_tools.get_tracking_summary(
-            order_id, auth_token=state.get("auth_token"), base_url=base_url
+            tenant_id=tenant_id, order_id=order_id, auth_token=state.get("auth_token")
         )
     except Exception as e:
         return {
@@ -105,7 +105,7 @@ async def shipped_track(state: ConversationState) -> dict:
 async def shipped_cancel(state: ConversationState) -> dict:
     """Cancel a shipped order (in-transit cancellation / RTO)."""
     order_id = state.get("selected_order_id", "")
-    base_url = state.get("tenant_config", {}).get("api_base_url", "http://localhost:8100")
+    tenant_id = state.get("tenant_id", "store-a")
 
     confirm_msg = (
         f"⚠️ Order **{order_id}** has already been shipped.\n"
@@ -123,10 +123,10 @@ async def shipped_cancel(state: ConversationState) -> dict:
 
     try:
         result = await oms_tools.cancel_order(
-            order_id,
+            tenant_id=tenant_id,
+            order_id=order_id,
             reason="Customer requested cancellation (shipped)",
             auth_token=state.get("auth_token"),
-            base_url=base_url,
         )
         msg = (
             f"✅ Cancellation initiated for order **{order_id}**.\n"

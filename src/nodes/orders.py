@@ -28,16 +28,16 @@ def _normalize_status(fulfillment_status: str) -> str:
 
 async def fetch_orders(state: ConversationState) -> dict:
     """Fetch orders from OMS for the authenticated user."""
-    base_url = state.get("tenant_config", {}).get("api_base_url", "http://localhost:8100")
+    tenant_id = state.get("tenant_id", "store-a")
     user_id = state.get("user_id")
     phone = state.get("user_phone")
 
     try:
         result = await oms_tools.search_orders(
+            tenant_id=tenant_id,
             user_id=user_id,
             phone=phone,
             auth_token=state.get("auth_token"),
-            base_url=base_url,
         )
         orders = result.get("orders", [])
     except Exception as e:
@@ -116,12 +116,12 @@ async def show_orders(state: ConversationState) -> dict:
 
     order_id = selected["id"]
     detailed_order = selected
-    base_url = state.get("tenant_config", {}).get("api_base_url", "http://localhost:8100")
+    tenant_id = state.get("tenant_id", "store-a")
     try:
         detailed_order = await oms_tools.get_order(
-            order_id,
+            tenant_id=tenant_id,
+            order_id=order_id,
             auth_token=state.get("auth_token"),
-            base_url=base_url,
         )
     except Exception:
         # Fall back to the search summary if the detail fetch fails.

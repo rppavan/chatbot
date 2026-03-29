@@ -4,3 +4,5 @@
 *.db-shm
 *.pyc
 .env
+/.claude
+/.claude-octopus

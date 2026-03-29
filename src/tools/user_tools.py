@@ -1,5 +1,8 @@
 """
 User Tools — HTTP client wrappers for user/auth API calls.
+
+OTP/auth functions are mock-specific and keep base_url.
+lookup_user_by_phone routes through the backend router.
 """
 import httpx
 from src.config import MOCK_API_BASE_URL
@@ -49,9 +52,22 @@ async def get_profile(
 
 async def lookup_user_by_phone(
     phone: str,
+    tenant_id: str | None = None,
     base_url: str = MOCK_API_BASE_URL,
 ) -> list[dict]:
-    """Look up users by phone number. Returns a list of matching user objects."""
+    """
+    Look up users by phone number.
+
+    Routes through the backend router when tenant_id is provided (supports
+    both mock and Shopify tenants). Falls back to direct mock API call when
+    tenant_id is absent (legacy / WhatsApp without tenant context).
+    """
+    if tenant_id:
+        from src.backends.router import get_backend
+        backend = get_backend(tenant_id)
+        user = await backend.get_user_by_phone(phone)
+        return [user] if user else []
+
     async with httpx.AsyncClient() as client:
         resp = await client.get(f"{base_url}/v2/user", params={"phone": phone})
         resp.raise_for_status()

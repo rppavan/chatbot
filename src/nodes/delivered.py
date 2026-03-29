@@ -79,12 +79,12 @@ async def route_delivered(state: ConversationState) -> str:
 async def delivered_return(state: ConversationState) -> dict:
     """Check return options and initiate return."""
     order_id = state.get("selected_order_id", "")
-    base_url = state.get("tenant_config", {}).get("api_base_url", "http://localhost:8100")
+    tenant_id = state.get("tenant_id", "store-a")
 
     # Check return eligibility
     try:
         options = await oms_tools.get_return_options(
-            order_id, auth_token=state.get("auth_token"), base_url=base_url
+            tenant_id=tenant_id, order_id=order_id, auth_token=state.get("auth_token")
         )
     except Exception as e:
         return {
@@ -128,7 +128,7 @@ async def delivered_return(state: ConversationState) -> dict:
     # Initiate return
     try:
         result = await oms_tools.initiate_return(
-            order_id, reason=reason, auth_token=state.get("auth_token"), base_url=base_url
+            tenant_id=tenant_id, order_id=order_id, reason=reason, auth_token=state.get("auth_token")
         )
         msg = (
             f"✅ Return initiated for order **{order_id}**!\n\n"
@@ -151,12 +151,12 @@ async def delivered_return(state: ConversationState) -> dict:
 async def delivered_exchange(state: ConversationState) -> dict:
     """Check exchange options and initiate exchange."""
     order_id = state.get("selected_order_id", "")
-    base_url = state.get("tenant_config", {}).get("api_base_url", "http://localhost:8100")
+    tenant_id = state.get("tenant_id", "store-a")
 
     # Check exchange eligibility
     try:
         options = await oms_tools.get_exchange_options(
-            order_id, auth_token=state.get("auth_token"), base_url=base_url
+            tenant_id=tenant_id, order_id=order_id, auth_token=state.get("auth_token")
         )
     except Exception as e:
         return {
@@ -231,10 +231,10 @@ async def delivered_exchange(state: ConversationState) -> dict:
     # Initiate exchange
     try:
         result = await oms_tools.initiate_exchange(
-            order_id,
+            tenant_id=tenant_id,
+            order_id=order_id,
             new_variant_id=selected_variant.get("variant_id", ""),
             auth_token=state.get("auth_token"),
-            base_url=base_url,
         )
         msg = (
             f"✅ Exchange initiated for order **{order_id}**!\n\n"

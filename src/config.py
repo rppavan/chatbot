@@ -19,11 +19,15 @@ WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
 WHATSAPP_ACCESS_TOKEN = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
 WHATSAPP_PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
 
+# --- Shopify / Clickpost (chat_service backend) ---
+ORDERS_MONTHS_LIMIT = int(os.getenv("ORDERS_MONTHS_LIMIT", "6"))
+
 
 # --- Tenant Configurations ---
 TENANT_CONFIGS = {
     "store-a": {
         "store_name": "UrbanStyle",
+        "backend_type": "mock",
         "api_base_url": MOCK_API_BASE_URL,
         "support_email": "support@urbanstyle.com",
         "support_phone": "+911234567890",
@@ -32,11 +36,24 @@ TENANT_CONFIGS = {
     },
     "store-b": {
         "store_name": "TechGadgets",
+        "backend_type": "mock",
         "api_base_url": MOCK_API_BASE_URL,
         "support_email": "help@techgadgets.com",
         "support_phone": "+910987654321",
         "return_window_days": 15,
         "exchange_window_days": 15,
+    },
+    "nobero": {
+        "store_name": "Nobero",
+        "backend_type": "chat_service",
+        "shopify_shop_name": os.getenv("SHOPIFY_SHOP_NAME", ""),
+        "shopify_access_token": os.getenv("SHOPIFY_ACCESS_TOKEN", ""),
+        "clickpost_username": os.getenv("CLICKPOST_USERNAME", ""),
+        "clickpost_api_key": os.getenv("CLICKPOST_API_KEY", ""),
+        "support_email": "support@nobero.com",
+        "support_phone": "+91...",
+        "return_window_days": 7,
+        "exchange_window_days": 7,
     },
 }
 

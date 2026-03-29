@@ -74,12 +74,12 @@ async def route_pre_dispatch(state: ConversationState) -> str:
 async def pre_dispatch_cancel(state: ConversationState) -> dict:
     """Cancel a pre-dispatch order."""
     order_id = state.get("selected_order_id", "")
-    base_url = state.get("tenant_config", {}).get("api_base_url", "http://localhost:8100")
+    tenant_id = state.get("tenant_id", "store-a")
 
     # Get cancel options first
     try:
         options = await oms_tools.get_cancel_options(
-            order_id, auth_token=state.get("auth_token"), base_url=base_url
+            tenant_id=tenant_id, order_id=order_id, auth_token=state.get("auth_token")
         )
     except Exception:
         return {
@@ -119,7 +119,7 @@ async def pre_dispatch_cancel(state: ConversationState) -> dict:
     # Execute cancellation
     try:
         result = await oms_tools.cancel_order(
-            order_id, reason=reason, auth_token=state.get("auth_token"), base_url=base_url
+            tenant_id=tenant_id, order_id=order_id, reason=reason, auth_token=state.get("auth_token")
         )
         msg = (
             f"✅ Order **{order_id}** has been cancelled successfully!\n\n"
