@@ -1,5 +1,5 @@
 """
-ChatServiceBackend — direct Shopify + Clickpost integration for production tenants.
+ShopifyBackend — direct Shopify + Clickpost integration for production tenants.
 
 Ports the business logic from chat-service-js directly into Python:
   src/order/service/order.service.ts  — order fetching + transformation
@@ -21,7 +21,7 @@ from src.backends.clickpost_client import (
 logger = logging.getLogger(__name__)
 
 
-class ChatServiceBackend(BackendAdapter):
+class ShopifyBackend(BackendAdapter):
     """Backend for Shopify-based tenants (e.g. nobero)."""
 
     def __init__(self, config: dict):

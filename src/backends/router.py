@@ -3,11 +3,11 @@ Backend router — selects the right BackendAdapter for a given tenant_id.
 """
 from src.backends.base import BackendAdapter
 from src.backends.mock import MockBackend
-from src.backends.chat_service import ChatServiceBackend
+from src.backends.shopify import ShopifyBackend
 
 _REGISTRY: dict[str, type[BackendAdapter]] = {
     "mock": MockBackend,
-    "chat_service": ChatServiceBackend,
+    "chat_service": ShopifyBackend,
 }
 
 
